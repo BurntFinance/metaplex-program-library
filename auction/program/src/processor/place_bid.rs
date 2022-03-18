@@ -320,11 +320,15 @@ pub fn place_bid<'r, 'b: 'r>(
         // seconds since the Unix epoch
         let current_time = clock.unix_timestamp;
 
+        // Is auction_start_time ever passed in anywhere? 
+        // In create_auction.rs it looks to be set to None,
+        // implying auction_start_time would always be 0
         let auction_start_time: u64 = match auction_extended.auction_start_time {
             Some(v) => v as u64,
             None => 0,
         };
 
+        // this seems to always be 3_600_000_000 if you step through create_auction.rs
         let decrease_interval = match auction_extended.decrease_interval {
             Some(v) => v as u64,
             None => 0,
@@ -333,11 +337,12 @@ pub fn place_bid<'r, 'b: 'r>(
         //time in minutes
         let decrease_interval_float: f64 = decrease_interval as f64 / lamp as f64;
 
-        let time_difference = current_time as u64 - auction_start_time;
+        // auction_start_time appears to always be 0 implying secs_elapsed == current_time
+        let secs_elapsed = current_time as u64 - auction_start_time;
 
-        let remaining_time = 180 - (time_difference as u64) / 60;
+        let remaining_mins = 180 - (secs_elapsed as u64) / 60;
 
-        if remaining_time <= 0 {
+        if remaining_mins <= 0 {
             //handle this
         }
 
@@ -346,14 +351,19 @@ pub fn place_bid<'r, 'b: 'r>(
 
         //Updated ceiling price only if it is greater than the decline interval:
 
-        if time_difference as u64 > decrease_interval {
+        // How are the seconds elapsed since beginning of auction greater than 3.6 billion?
+        // Is the current_time given in milliseconds? This could explain it.
+        if secs_elapsed as u64 > decrease_interval {
             //Next ceiling price calulation
 
-            let decrease_value: f64 =
+            // in SOL units
+            let total_decrease_range: f64 =
                 (price_ceiling as f64 - price_floor as f64) / lamp as f64;
 
-            let decline_value: f64 = decrease_value * (decrease_rate_float / 100.0);
+            // 2% of total_decrease_range in SOL units
+            let decline_value: f64 = total_decrease_range * (decrease_rate_float / 100.0);
 
+            // val = price_ceiling - 0.02*(price_ceiling - price_floor) in Lamport units
             let val: u64 =
                 ((price_ceiling as f64 / lamp as f64 - decline_value) * lamp as f64) as u64;
 
