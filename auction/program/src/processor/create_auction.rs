@@ -115,7 +115,7 @@ pub fn create_auction(
     };
 
     let mut decline_interval = 0;
-    let lamp = 1000000000;
+    let lamp = 1_000_000_000;
     let decline_rate = 2 * lamp;
     let mut send_decrease_rate: u64 = 0;
 
@@ -129,6 +129,16 @@ pub fn create_auction(
             PriceFloor::MinimumPrice(v) => v[0],
             _ => 0,
         };
+
+        if price_ceiling < 0 {
+            msg!("Ceiling price Price is either not set, or is set less than 0");
+            return Err(AuctionError::CeilingPriceMandatoryDuctchAuction.into());
+        }
+
+        if price_ceiling < price_floor as u64 {
+            msg!("Ceiling price can never be less than Floor price");
+            return Err(AuctionError::CeilingPriceLessThanFloorPrice.into());
+        }
 
         let decrease_value: f64 =
             price_ceiling as f64 / lamp as f64 - price_floor as f64 / lamp as f64;
@@ -145,18 +155,6 @@ pub fn create_auction(
 
         //Calculating the decline_interval on the basis of decline value
         decline_interval = (((180.0 / decrease_value) * decline_value) * lamp as f64) as u64;
-
-        // 1 minute = 10^9
-
-        if price_ceiling < 0 {
-            msg!("Ceiling price Price is either not set, or is set less than 0");
-            return Err(AuctionError::CeilingPriceMandatoryDuctchAuction.into());
-        }
-
-        if price_ceiling < price_floor as u64 {
-            msg!("Ceiling price can never be less than Floor price");
-            return Err(AuctionError::CeilingPriceLessThanFloorPrice.into());
-        }
     }
 
     if let Some(gap_tick) = args.gap_tick_size_percentage {
