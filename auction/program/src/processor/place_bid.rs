@@ -282,7 +282,7 @@ pub fn place_bid<'r, 'b: 'r>(
         BidState::DutchAuction { ref bids, max } => 2,
     };
 
-    let lamp = 1000000000;
+    let lamp = 1_000_000_000;
 
     let price_floor = match auction.price_floor {
         PriceFloor::MinimumPrice(v) => v[0],
@@ -317,6 +317,7 @@ pub fn place_bid<'r, 'b: 'r>(
 
         let decrease_rate_float: f64 = decrease_rate as f64 / lamp as f64;
 
+        // seconds since the Unix epoch
         let current_time = clock.unix_timestamp;
 
         let auction_start_time: u64 = match auction_extended.auction_start_time {
@@ -349,7 +350,7 @@ pub fn place_bid<'r, 'b: 'r>(
             //Next ceiling price calulation
 
             let decrease_value: f64 =
-                price_ceiling as f64 / lamp as f64 - price_floor as f64 / lamp as f64;
+                (price_ceiling as f64 - price_floor as f64) / lamp as f64;
 
             let decline_value: f64 = decrease_value * (decrease_rate_float / 100.0);
 
