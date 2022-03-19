@@ -212,6 +212,7 @@ pub fn create_auction(
         total_uncancelled_bids: 0,
         tick_size: args.tick_size,
         gap_tick_size_percentage: args.gap_tick_size_percentage,
+        initial_instant_sale_price: instant_sale_price,
         instant_sale_price,
         name,
         decrease_rate: Some(send_decrease_rate),
