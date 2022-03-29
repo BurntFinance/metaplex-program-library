@@ -215,8 +215,8 @@ pub fn create_auction(
         initial_instant_sale_price: instant_sale_price,
         instant_sale_price,
         name,
-        decrease_rate: Some(send_decrease_rate),
-        decrease_interval: Some(decline_interval),
+        decrease_rate: None, // Some(send_decrease_rate)
+        decrease_interval: None, // Some(decline_interval)
         auction_start_time: None,
     }
     .serialize(&mut *accounts.auction_extended.data.borrow_mut())?;
