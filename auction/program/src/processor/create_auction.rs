@@ -212,11 +212,14 @@ pub fn create_auction(
         total_uncancelled_bids: 0,
         tick_size: args.tick_size,
         gap_tick_size_percentage: args.gap_tick_size_percentage,
-        initial_instant_sale_price: instant_sale_price,
         instant_sale_price,
         name,
         decrease_rate: None, // Some(send_decrease_rate)
-        decrease_interval: None, // Some(decline_interval)
+        // for now we are hijacking the unused decrease_interval to hold the value for the
+        // initial instant_sale_price. The initial instant_sale_price needs to be stored
+        // because in place_bid.rs we mutate instant_sale_price, but need its initial value
+        // in the calculations. TODO: see if we can change the field name in the contract.
+        decrease_interval: instant_sale_price, // Some(decline_interval)
         auction_start_time: None,
     }
     .serialize(&mut *accounts.auction_extended.data.borrow_mut())?;

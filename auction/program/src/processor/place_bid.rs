@@ -308,7 +308,8 @@ pub fn place_bid<'r, 'b: 'r>(
         .ok_or(AuctionError::NumericalOverflowError)?;
     if bid_type == 2 {
         msg!("{}", "Inside Auction Data Extended");
-        let price_ceiling: u64 = match auction_extended.initial_instant_sale_price {
+        // reminder we are using decrease_interval for now to store the initial instant_sale_price
+        let price_ceiling: u64 = match auction_extended.decrease_interval {
             Some(v) => v as u64,
             None => 0,
         };
