@@ -282,7 +282,7 @@ pub fn place_bid<'r, 'b: 'r>(
         BidState::DutchAuction { ref bids, max } => 2,
     };
 
-    let lamp = 1000000000;
+    let lamp = 1_000_000_000;
 
     let price_floor = match auction.price_floor {
         PriceFloor::MinimumPrice(v) => v[0],
@@ -308,7 +308,8 @@ pub fn place_bid<'r, 'b: 'r>(
         .ok_or(AuctionError::NumericalOverflowError)?;
     if bid_type == 2 {
         msg!("{}", "Inside Auction Data Extended");
-        let price_ceiling: u64 = match auction_extended.instant_sale_price {
+        // reminder we are using decrease_interval for now to store the initial instant_sale_price
+        let price_ceiling: u64 = match auction_extended.decrease_interval {
             Some(v) => v as u64,
             None => 0,
         };
@@ -317,48 +318,55 @@ pub fn place_bid<'r, 'b: 'r>(
 
         let decrease_rate_float: f64 = decrease_rate as f64 / lamp as f64;
 
+        // seconds since the Unix epoch
         let current_time = clock.unix_timestamp;
 
+        // Is auction_start_time ever passed in anywhere? 
+        // In create_auction.rs it looks to be set to None,
+        // implying auction_start_time would always be 0
         let auction_start_time: u64 = match auction_extended.auction_start_time {
             Some(v) => v as u64,
             None => 0,
         };
 
-        let decrease_interval = match auction_extended.decrease_interval {
+        let end_auction_at: u64 = match auction.end_auction_at {
             Some(v) => v as u64,
             None => 0,
         };
 
-        //time in minutes
-        let decrease_interval_float: f64 = decrease_interval as f64 / lamp as f64;
+        let secs_elapsed = current_time as u64 - auction_start_time;
 
-        let time_difference = current_time as u64 - auction_start_time;
+        let percent_time_elapsed = match (auction_start_time, end_auction_at) {
+            (start, end) => secs_elapsed as f64 / ((end - start) as f64),
+            (start, 0) => (current_time as u64 - start) as f64 / (180.0 * 60.0), // assume 180 min auction duration
+            (_, _) => 0.0 // TODO: how to handle this case when auction_start_time and end_auction_at are 0 ie not provided?
+        };
 
-        let remaining_time = 180 - (time_difference as u64) / 60;
-
-        if remaining_time <= 0 {
-            //handle this
+        // Can't bid on an auction that isn't running.
+        if percent_time_elapsed >= 1.0 {
+            return Err(AuctionError::InvalidState.into());
         }
 
         //Check the parameters before placing bid
         BidState::assert_dutch_parameters(Some(price_ceiling), price_floor);
 
-        //Updated ceiling price only if it is greater than the decline interval:
+        //Next ceiling price calulation
 
-        if time_difference as u64 > decrease_interval {
-            //Next ceiling price calulation
+        // in Lamport units
+        let total_decrease_range: u64 = price_ceiling - price_floor;
 
-            let decrease_value: f64 =
-                price_ceiling as f64 / lamp as f64 - price_floor as f64 / lamp as f64;
+        // in Lamport units
+        let mut val = price_ceiling - ((percent_time_elapsed * total_decrease_range as f64) as u64);
 
-            let decline_value: f64 = decrease_value * (decrease_rate_float / 100.0);
-
-            let val: u64 =
-                ((price_ceiling as f64 / lamp as f64 - decline_value) * lamp as f64) as u64;
-
-            //Now update the ceiling price:
-            auction_extended.instant_sale_price = Some(val);
+        // ensure price_floor <= val <= price_ceiling
+        if val < price_floor {
+            val = price_floor;
+        } else if val > price_ceiling {
+            val = price_ceiling;
         }
+
+        //Now update the ceiling price:
+        auction_extended.instant_sale_price = Some(val);
     }
     auction_extended.serialize(&mut *accounts.auction_extended.data.borrow_mut())?;
 

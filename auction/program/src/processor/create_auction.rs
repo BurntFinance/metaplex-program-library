@@ -115,7 +115,7 @@ pub fn create_auction(
     };
 
     let mut decline_interval = 0;
-    let lamp = 1000000000;
+    let lamp = 1_000_000_000;
     let decline_rate = 2 * lamp;
     let mut send_decrease_rate: u64 = 0;
 
@@ -130,24 +130,6 @@ pub fn create_auction(
             _ => 0,
         };
 
-        let decrease_value: f64 =
-            price_ceiling as f64 / lamp as f64 - price_floor as f64 / lamp as f64;
-
-        let act_dec_rate: f64 = decline_rate as f64 / lamp as f64;
-
-        //decrease/minute
-        let decline_value: f64 = decrease_value * (act_dec_rate / 100.0);
-
-        send_decrease_rate = (decline_value * lamp as f64) as u64;
-
-        //Considering the toal time of dutch auction to be 180 minutes:
-        msg!("The decline value {}", decline_value);
-
-        //Calculating the decline_interval on the basis of decline value
-        decline_interval = (((180.0 / decrease_value) * decline_value) * lamp as f64) as u64;
-
-        // 1 minute = 10^9
-
         if price_ceiling < 0 {
             msg!("Ceiling price Price is either not set, or is set less than 0");
             return Err(AuctionError::CeilingPriceMandatoryDuctchAuction.into());
@@ -157,6 +139,19 @@ pub fn create_auction(
             msg!("Ceiling price can never be less than Floor price");
             return Err(AuctionError::CeilingPriceLessThanFloorPrice.into());
         }
+
+        let total_decrease_range: f64 =
+            (price_ceiling as f64 - price_floor as f64) / lamp as f64;
+
+        let act_dec_rate: f64 = decline_rate as f64 / lamp as f64;
+
+        //decrease/minute
+        let decline_value: f64 = total_decrease_range * (act_dec_rate / 100.0);
+
+        send_decrease_rate = (decline_value * lamp as f64) as u64;
+
+        //Considering the toal time of dutch auction to be 180 minutes:
+        msg!("The decline value {}", decline_value);
     }
 
     if let Some(gap_tick) = args.gap_tick_size_percentage {
@@ -215,8 +210,12 @@ pub fn create_auction(
         gap_tick_size_percentage: args.gap_tick_size_percentage,
         instant_sale_price,
         name,
-        decrease_rate: Some(send_decrease_rate),
-        decrease_interval: Some(decline_interval),
+        decrease_rate: None, // Some(send_decrease_rate)
+        // for now we are hijacking the unused decrease_interval to hold the value for the
+        // initial instant_sale_price. The initial instant_sale_price needs to be stored
+        // because in place_bid.rs we mutate instant_sale_price, but need its initial value
+        // in the calculations. TODO: see if we can change the field name in the contract.
+        decrease_interval: instant_sale_price, // Some(decline_interval)
         auction_start_time: None,
     }
     .serialize(&mut *accounts.auction_extended.data.borrow_mut())?;
