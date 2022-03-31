@@ -119,7 +119,6 @@ pub fn create_auction(
     let decline_rate = 2 * lamp;
     let mut send_decrease_rate: u64 = 0;
 
-    // The following code calculates the values used for decrease_rate and decrease_interval
     if (bid_type_u64 == 2) {
         let price_ceiling: u64 = match instant_sale_price {
             Some(v) => v as u64,
@@ -153,9 +152,6 @@ pub fn create_auction(
 
         //Considering the toal time of dutch auction to be 180 minutes:
         msg!("The decline value {}", decline_value);
-
-        //Calculating the decline_interval on the basis of decline value
-        decline_interval = (((180.0 / total_decrease_range) * decline_value) * lamp as f64) as u64;
     }
 
     if let Some(gap_tick) = args.gap_tick_size_percentage {

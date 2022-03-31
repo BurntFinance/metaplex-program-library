@@ -342,16 +342,10 @@ pub fn place_bid<'r, 'b: 'r>(
             (_, _) => 0.0 // TODO: how to handle this case when auction_start_time and end_auction_at are 0 ie not provided?
         };
 
+        // Can't bid on an auction that isn't running.
         if percent_time_elapsed >= 1.0 {
-            //handle this
+            return Err(AuctionError::InvalidState.into());
         }
-
-        // This seems to always be 3_600_000_000 if you step through create_auction.rs.
-        // Doesn't seem to be necessary anymore to have this variable. Can remove it from here.
-        let decrease_interval = match auction_extended.decrease_interval {
-            Some(v) => v as u64,
-            None => 0,
-        };
 
         //Check the parameters before placing bid
         BidState::assert_dutch_parameters(Some(price_ceiling), price_floor);
